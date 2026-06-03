@@ -1,5 +1,11 @@
 # REINVENT4 + GNINA — Goal-directed Molecular Design Web App
 
+![Python](https://img.shields.io/badge/python-3.10%2B-blue?logo=python&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white)
+![RDKit](https://img.shields.io/badge/RDKit-cheminformatics-26a269)
+![REINVENT4](https://img.shields.io/badge/REINVENT4-staged--learning-orange)
+![GNINA](https://img.shields.io/badge/GNINA-docking-8e44ad)
+
 A FastAPI web app for **structure-based de novo design**. [REINVENT4](https://github.com/MolecularAI/REINVENT4)
 runs a *staged-learning* reinforcement-learning loop in which the reward for each
 generated molecule is a [GNINA](https://github.com/gnina/gnina) docking score
