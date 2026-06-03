@@ -1,0 +1,13 @@
+# Python
+__pycache__/
+*.py[cod]
+
+# Runtime logs / job output
+*.log
+jobs/
+
+# Local tooling / editor state
+.claude/
+
+# OS cruft
+.DS_Store

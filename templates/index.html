@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>REINVENT4 + GNINA — Goal-directed molecular design</title>
+<style>
+  :root{
+    --bg:#0f1419; --panel:#1a2230; --panel2:#222c3c; --line:#2c3950;
+    --txt:#e6edf3; --muted:#8b9bb4; --accent:#4dabf7; --accent2:#69db7c;
+    --warn:#ffa94d; --bad:#ff6b6b; --radius:10px;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+       background:var(--bg);color:var(--txt);line-height:1.5;font-size:14px}
+  header{padding:18px 26px;border-bottom:1px solid var(--line);background:linear-gradient(90deg,#16202e,#1a2230);
+         display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
+  header h1{margin:0;font-size:20px;font-weight:650}
+  header .sub{color:var(--muted);font-size:13px}
+  header .pill{margin-left:auto;font-size:12px;color:var(--muted)}
+  .wrap{max-width:1180px;margin:0 auto;padding:22px}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:22px}
+  @media(max-width:900px){.grid{grid-template-columns:1fr}}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:18px 20px;margin-bottom:22px}
+  .card h2{margin:0 0 4px;font-size:15px;font-weight:650}
+  .card h2 .n{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;
+              background:var(--accent);color:#06131f;font-size:12px;font-weight:700;margin-right:8px}
+  .card .desc{color:var(--muted);font-size:12.5px;margin:0 0 14px}
+  label{display:block;font-size:12px;color:var(--muted);margin:10px 0 4px}
+  input,select,textarea{width:100%;background:var(--panel2);border:1px solid var(--line);color:var(--txt);
+        border-radius:7px;padding:8px 10px;font-size:13px;font-family:inherit}
+  input:focus,select:focus{outline:none;border-color:var(--accent)}
+  .row{display:flex;gap:12px}.row>*{flex:1}
+  .row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+  button{cursor:pointer;border:none;border-radius:8px;padding:10px 16px;font-size:13px;font-weight:600;
+         background:var(--accent);color:#06131f;transition:filter .15s}
+  button:hover{filter:brightness(1.08)} button:disabled{opacity:.45;cursor:not-allowed}
+  button.ghost{background:var(--panel2);color:var(--txt);border:1px solid var(--line)}
+  button.go{background:var(--accent2);font-size:14px;padding:12px 22px}
+  button.stop{background:var(--bad);color:#fff}
+  .seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;margin-bottom:6px}
+  .seg button{background:var(--panel2);color:var(--muted);border-radius:0;font-weight:500;padding:8px 14px}
+  .seg button.active{background:var(--accent);color:#06131f;font-weight:650}
+  .help{font-size:11.5px;color:var(--muted);margin-top:3px}
+  .chk{display:flex;align-items:center;gap:8px;margin:6px 0}
+  .chk input{width:auto}
+  .hidden{display:none}
+  .status{display:flex;align-items:center;gap:10px;font-size:13px}
+  .dot{width:9px;height:9px;border-radius:50%;background:var(--muted)}
+  .dot.running{background:var(--accent);animation:pulse 1.2s infinite}
+  .dot.completed{background:var(--accent2)} .dot.failed,.dot.stopped{background:var(--bad)}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+  .bar{height:8px;background:var(--panel2);border-radius:5px;overflow:hidden;margin:10px 0}
+  .bar>i{display:block;height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));width:0%;transition:width .4s}
+  .metrics{display:flex;gap:18px;flex-wrap:wrap;margin:10px 0;font-size:13px}
+  .metrics b{color:var(--accent2);font-size:16px;font-variant-numeric:tabular-nums}
+  .metrics span{color:var(--muted);display:block;font-size:11px}
+  canvas{width:100%;height:180px;background:var(--panel2);border-radius:8px;margin-top:8px}
+  pre.log{background:#0a0e13;border:1px solid var(--line);border-radius:8px;padding:10px;font-size:11.5px;
+          max-height:140px;overflow:auto;white-space:pre-wrap;color:var(--muted)}
+  .mols{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:14px;margin-top:6px}
+  .mol{background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:8px;text-align:center}
+  .mol img{width:100%;height:150px;object-fit:contain;background:#fff;border-radius:6px}
+  .mol .v{font-size:11.5px;color:var(--muted);margin-top:6px;text-align:left}
+  .mol .v b{color:var(--accent2)}
+  .mol .smi{font-size:9.5px;color:#5d6b82;word-break:break-all;margin-top:4px;max-height:28px;overflow:hidden}
+  .dl{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+  .dl a{font-size:12px;color:var(--accent);text-decoration:none;border:1px solid var(--line);padding:6px 12px;border-radius:7px}
+  .dl a:hover{background:var(--panel2)}
+  .toast{position:fixed;bottom:20px;right:20px;background:var(--panel2);border:1px solid var(--line);
+         padding:12px 16px;border-radius:9px;font-size:13px;max-width:360px;box-shadow:0 8px 30px rgba(0,0,0,.4)}
+  .toast.bad{border-color:var(--bad)}
+  .tag{display:inline-block;background:var(--panel2);border:1px solid var(--line);border-radius:20px;
+       padding:3px 10px;margin:3px 4px 0 0;font-size:11.5px}
+  .chiprow{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px}
+  .chip{display:flex;align-items:center;gap:6px;background:var(--panel2);border:1px solid var(--line);
+        border-radius:7px;padding:6px 11px;font-size:12.5px;cursor:pointer}
+  .chip input{width:auto;margin:0}
+  .het-table{width:100%;border-collapse:collapse;margin-top:6px;font-size:12.5px}
+  .het-table th{text-align:left;color:var(--muted);font-weight:600;font-size:11.5px;
+        padding:6px 8px;border-bottom:1px solid var(--line)}
+  .het-table th:nth-child(3),.het-table th:nth-child(4){text-align:center;width:74px}
+  .het-table td{padding:6px 8px;border-bottom:1px solid var(--line)}
+  .het-table td:nth-child(3),.het-table td:nth-child(4){text-align:center}
+  .het-table td:first-child{font-family:monospace;font-weight:600;color:var(--accent2)}
+  .het-table input{width:auto;margin:0}
+  .badge{font-size:11px;color:var(--accent2);border:1px solid var(--accent2);border-radius:6px;padding:2px 7px}
+</style>
+</head>
+<body>
+<header>
+  <h1>🧬 REINVENT4 <span style="color:var(--muted)">+</span> GNINA</h1>
+  <span class="sub">Goal-directed de novo design — RL reward = GNINA docking score</span>
+  <span class="pill" id="health">checking…</span>
+</header>
+
+<div class="wrap">
+  <div class="grid">
+    <!-- ── Receptor ──────────────────────────────────────────── -->
+    <div class="card">
+      <h2><span class="n">1</span>Target receptor</h2>
+      <p class="desc">Prepare a protein from the PDB, or upload a prepared receptor + reference ligand. The reference ligand defines the GNINA autobox (binding site).</p>
+
+      <div class="seg">
+        <button id="modePrep" class="active" onclick="setRecMode('prep')">Prepare from PDB</button>
+        <button id="modeUpload" onclick="setRecMode('upload')">Upload prepared</button>
+      </div>
+
+      <!-- Prepare from PDB -->
+      <div id="prepBox">
+        <div class="row">
+          <div><label>PDB ID</label><input id="pdbId" placeholder="e.g. 4N1U"></div>
+          <div><label>…or upload PDB</label><input id="pdbFile" type="file" accept=".pdb,.cif"></div>
+        </div>
+        <button class="ghost" style="margin-top:10px" onclick="inspectPDB()" id="inspectBtn">Inspect structure</button>
+        <div id="inspectResult" class="hidden" style="margin-top:14px">
+          <div id="structInfo" class="help" style="margin-bottom:10px"></div>
+
+          <label>Chains to keep <span style="font-weight:400">(all selected by default; deselecting hides that chain's HET groups)</span></label>
+          <div id="chainCheckboxes" class="chiprow"></div>
+
+          <div id="hetSection" class="hidden" style="margin-top:12px">
+            <label>HETATM groups — choose a role for each</label>
+            <table class="het-table">
+              <thead><tr>
+                <th>Residue</th><th>Location(s)</th>
+                <th title="Defines the binding site (autobox); extracted as the reference ligand SDF">Reference</th>
+                <th title="Kept in the prepared receptor (e.g. cofactor, metal ion)">Cofactor</th>
+              </tr></thead>
+              <tbody id="hetTableBody"></tbody>
+            </table>
+            <p class="help">Reference = binding-site autobox (one). Cofactor = kept in receptor (many). Rows with neither checked are deleted.</p>
+          </div>
+          <div id="noHetMsg" class="hidden help" style="color:var(--warn)">No HETATM groups found — you'll need to upload a reference ligand, or use the Upload-prepared tab.</div>
+
+          <div class="row" style="max-width:160px;margin-top:10px">
+            <div><label>Preparation pH</label><input id="ph" type="number" value="7.4" step="0.1" min="0" max="14"></div>
+          </div>
+          <button class="ghost" style="margin-top:10px" onclick="runPrep()" id="prepBtn">Prepare protein →</button>
+        </div>
+      </div>
+
+      <!-- Upload prepared -->
+      <div id="uploadBox" class="hidden">
+        <label>Prepared receptor (.pdb / .pdbqt)</label>
+        <input id="recUpload" type="file" accept=".pdb,.pdbqt">
+        <label>Reference ligand for autobox (.sdf / .mol2)</label>
+        <input id="ligUpload" type="file" accept=".sdf,.mol2,.pdb">
+        <button class="ghost" style="margin-top:10px" onclick="loadUploaded()">Load files</button>
+      </div>
+
+      <div id="recStatus" style="margin-top:14px"></div>
+    </div>
+
+    <!-- ── RL settings ───────────────────────────────────────── -->
+    <div class="card">
+      <h2><span class="n">2</span>Optimization settings</h2>
+      <p class="desc">REINVENT samples a batch each step, GNINA docks &amp; scores them, and the agent is updated toward higher-reward chemistry.</p>
+
+      <label>Docking score to optimize (reward)</label>
+      <select id="metric" onchange="metricChanged()">
+        <option value="vina_affinity" selected>Vina affinity (kcal/mol — lower better)</option>
+        <option value="cnn_affinity">GNINA CNNaffinity (predicted pK — higher better)</option>
+        <option value="cnn_pose_score">GNINA CNN pose score (0–1 — higher better)</option>
+      </select>
+      <p class="help" id="cnnSyncNote"></p>
+
+      <div class="row3">
+        <div><label>Transform low</label><input id="tlow" type="number" step="0.1"></div>
+        <div><label>Transform high</label><input id="thigh" type="number" step="0.1"></div>
+        <div><label>Transform k</label><input id="tk" type="number" step="0.1" value="0.5"></div>
+      </div>
+      <p class="help">Maps the raw docking value into a 0–1 reward (sigmoid for higher-better, reverse-sigmoid for Vina).</p>
+
+      <div class="row3">
+        <div><label>Steps (max)</label><input id="maxSteps" type="number" value="100"></div>
+        <div><label>Batch size</label><input id="batchSize" type="number" value="64"></div>
+        <div><label>Sigma</label><input id="sigma" type="number" value="128"></div>
+      </div>
+      <div class="row3">
+        <div><label>Min steps</label><input id="minSteps" type="number" value="5"></div>
+        <div><label>Learning rate</label><input id="lr" type="number" value="0.0001" step="0.00001"></div>
+        <div><label>Aggregation</label>
+          <select id="agg"><option value="geometric_mean">geometric mean</option><option value="arithmetic_mean">arithmetic mean</option></select>
+        </div>
+      </div>
+
+      <details style="margin-top:6px">
+        <summary style="cursor:pointer;color:var(--accent);font-size:12.5px">GNINA &amp; hardware options</summary>
+        <div class="row3">
+          <div><label>Exhaustiveness</label><input id="exh" type="number" min="1" value="4"><p class="help">Vina search effort. 4 is a good speed/quality trade for RL reward; raise to 8+ for a final high-quality dock.</p></div>
+          <div><label>Autobox add (Å)</label><input id="abox" type="number" value="4" step="0.5"></div>
+          <div><label>CNN scoring</label>
+            <select id="cnnScoring" onchange="cnnNote()"><option value="rescore">rescore (fast)</option><option value="all">all (slow)</option><option value="none" selected>none (Vina only)</option></select>
+          </div>
+        </div>
+        <div class="row3">
+          <div><label>Training GPU (REINVENT)</label>
+            <select id="trainGpu"><option value="cuda:0">cuda:0</option><option value="cuda:1">cuda:1</option><option value="cpu">cpu</option></select>
+          </div>
+          <div><label>Docking GPU (GNINA)</label>
+            <select id="dockGpu"><option value="0">0</option><option value="1" selected>1</option><option value="">CPU</option></select>
+          </div>
+          <div><label>CPU threads (dock/prep)</label><input id="embedWorkers" type="number" value="32"></div>
+        </div>
+      </details>
+
+      <details style="margin-top:6px">
+        <summary style="cursor:pointer;color:var(--accent);font-size:12.5px">Extra scoring components &amp; diversity</summary>
+        <div class="chk"><input type="checkbox" id="useQed"><label style="margin:0">QED drug-likeness (weight <input id="qedW" type="number" value="0.3" step="0.1" style="width:60px;display:inline">)</label></div>
+        <div class="chk"><input type="checkbox" id="useMw"><label style="margin:0">Molecular weight <input id="mwLow" type="number" value="200" step="10" style="width:64px;display:inline">–<input id="mwHigh" type="number" value="400" step="10" style="width:64px;display:inline"> (weight <input id="mwW" type="number" value="0.3" step="0.1" style="width:56px;display:inline">)</label></div>
+        <div class="chk"><input type="checkbox" id="useSlogp"><label style="margin:0">SlogP <input id="slogpLow" type="number" value="1" step="0.5" style="width:64px;display:inline">–<input id="slogpHigh" type="number" value="3" step="0.5" style="width:64px;display:inline"> (weight <input id="slogpW" type="number" value="0.25" step="0.05" style="width:56px;display:inline">)</label></div>
+        <div class="chk"><input type="checkbox" id="useDf" checked><label style="margin:0">Diversity filter (Murcko scaffold, bucket 25)</label></div>
+      </details>
+    </div>
+  </div>
+
+  <!-- ── Ligand prep & filter ─────────────────────────────────── -->
+  <div class="card">
+    <h2><span class="n">3</span>Ligand filtering &amp; 3D prep <span style="font-weight:400;color:var(--muted);font-size:12px">— applied to each generated batch before docking</span></h2>
+    <p class="desc">Pipeline per step: <b>ligfilter</b> drops unwanted molecules (they get reward 0, so the agent learns to avoid them) → an <b>RDKit ETKDG</b> 3D conformer is embedded → GNINA docks them. Optionally enable <b>ligprep</b> for chemically richer 3D states (salt-strip, tautomer/protomer at pH via cxcalc, stereo, CONFORGE) instead of the single ETKDG conformer.</p>
+    <div class="grid" style="margin-bottom:0">
+      <div>
+        <div class="chk"><input type="checkbox" id="useLigfilter" checked onchange="toggleBox('filterOpts',this.checked)"><label style="margin:0;color:var(--txt);font-weight:600">Filter molecules (ligfilter)</label></div>
+        <div id="filterOpts">
+          <div class="chk"><input type="checkbox" id="fPains" checked><label style="margin:0">PAINS alerts</label></div>
+          <div class="chk"><input type="checkbox" id="fReos" checked><label style="margin:0">REOS rules</label></div>
+          <div class="chk"><input type="checkbox" id="fCustom" checked><label style="margin:0">Custom filters (charged · isotopes · polyols)</label></div>
+          <div class="chk"><input type="checkbox" id="fRo5"><label style="margin:0">Lipinski Ro5</label></div>
+          <div class="chk"><input type="checkbox" id="fRo3"><label style="margin:0">Rule of 3 (fragments)</label></div>
+          <div class="row">
+            <div><label>MW range (MIN:MAX)</label><input id="fMw" placeholder="e.g. 150:500"></div>
+            <div><label>QED range</label><input id="fQed" placeholder="e.g. 0.3:"></div>
+          </div>
+          <div class="row">
+            <div><label>logP range</label><input id="fLogp" placeholder="e.g. :5"></div>
+            <div><label>TPSA range</label><input id="fTpsa" placeholder="e.g. :140"></div>
+          </div>
+          <p class="help">Blank = filter off. Format MIN:MAX, MIN:, or :MAX.</p>
+        </div>
+      </div>
+      <div>
+        <div class="chk"><input type="checkbox" id="useLigprep" onchange="toggleBox('prepOpts',this.checked)"><label style="margin:0;color:var(--txt);font-weight:600">3D prep (ligprep) — off by default</label></div>
+        <div id="prepOpts" style="opacity:0.4;pointer-events:none">
+          <div class="row3">
+            <div><label>pH</label><input id="lpPh" type="number" value="7.4" step="0.1"></div>
+            <div><label>Mode</label>
+              <select id="lpMode">
+                <option value="dominant">dominant (1 state)</option>
+                <option value="states">states (per tautomer/stereo)</option>
+                <option value="ensemble">ensemble (multi-conformer)</option>
+              </select>
+            </div>
+            <div><label>Max tautomers</label><input id="lpMaxTaut" type="number" placeholder="default"></div>
+          </div>
+          <div class="chk"><input type="checkbox" id="lpNoStereo"><label style="margin:0">Skip stereo enumeration</label></div>
+          <div class="chk"><input type="checkbox" id="lpPenalty"><label style="margin:0">Subtract state penalty from score (down-weight unlikely states)</label></div>
+          <p class="help">Default (off): a single RDKit ETKDG conformer per molecule. When on: multiple states are docked and the best per molecule is kept — RL-safe caps apply (stereo enumeration capped at 4, CONFORGE timeout 20&nbsp;s) so a single molecule can't stall a step.</p>
+        </div>
+        <div class="chk" style="margin-top:8px"><input type="checkbox" id="canonTaut" checked><label style="margin:0;color:var(--txt);font-weight:600">Canonicalize tautomers (default on)</label></div>
+        <p class="help">REINVENT's prior often emits minor tautomers (e.g. exocyclic-imine pyridines <code>N=c1cccc[nH]1</code>, lactim heterocycles). When on, each molecule is normalized to its dominant tautomer before docking, and the results grid / CSV export show the canonical form (raw SMILES kept in the CSV too). Turn off to dock exactly what was generated.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Launch ───────────────────────────────────────────────── -->
+  <div class="card" style="text-align:center">
+    <label style="text-align:left">Run name</label>
+    <div class="row" style="max-width:520px;margin:0 auto">
+      <input id="runName" value="reinvent_gnina" style="text-align:center">
+      <button class="go" id="runBtn" onclick="startRun()" disabled>▶ Start optimization</button>
+      <button class="stop hidden" id="stopBtn" onclick="stopRun()">■ Stop</button>
+    </div>
+    <p class="help" style="margin-top:8px">Each step docks <span id="dockEst">64</span> molecules — expect a few minutes per step. Results stream live below.</p>
+  </div>
+
+  <!-- ── Progress ─────────────────────────────────────────────── -->
+  <div class="card hidden" id="progressCard">
+    <h2>Progress</h2>
+    <div class="status"><span class="dot" id="statusDot"></span><span id="statusText">—</span></div>
+    <div class="bar"><i id="progBar"></i></div>
+    <div class="metrics">
+      <div><b id="mStep">0</b><span>step / <span id="mMax">0</span></span></div>
+      <div><b id="mScore">—</b><span>mean total score</span></div>
+      <div><b id="mBest">—</b><span>best <span id="mBestLabel">CNNaffinity</span></span></div>
+      <div><b id="mValid">—</b><span>% valid</span></div>
+    </div>
+    <canvas id="chart"></canvas>
+    <pre class="log hidden" id="errLog"></pre>
+  </div>
+
+  <!-- ── Results ──────────────────────────────────────────────── -->
+  <div class="card hidden" id="resultsCard">
+    <h2>Top molecules <span class="badge" id="resCount"></span></h2>
+    <div class="dl" id="downloads"></div>
+    <div class="mols" id="mols"></div>
+  </div>
+</div>
+
+<script>
+let REC = {pdb_b64:null, lig_b64:null, prepToken:null, label:null};
+let JOB = null, WS = null, chartData = [];
+
+function toast(msg, bad){
+  const t=document.createElement('div');t.className='toast'+(bad?' bad':'');t.textContent=msg;
+  document.body.appendChild(t);setTimeout(()=>t.remove(),4200);
+}
+async function health(){
+  try{const r=await fetch('/health');const j=await r.json();
+    document.getElementById('health').textContent =
+      (j.gnina&&j.reinvent&&j.prior?'● ready':'● missing tools')+' · '+j.jobs+' jobs';
+  }catch(e){document.getElementById('health').textContent='● offline';}
+}
+health();
+
+const METRIC_DEFAULTS={
+  cnn_affinity:{low:4,high:8,k:0.5,label:'CNNaffinity'},
+  cnn_pose_score:{low:0.3,high:0.9,k:0.5,label:'pose score'},
+  vina_affinity:{low:-12,high:-5,k:0.5,label:'Vina'}
+};
+function metricChanged(){
+  const m=document.getElementById('metric').value, d=METRIC_DEFAULTS[m];
+  tlow.value=d.low; thigh.value=d.high; tk.value=d.k;
+  document.getElementById('mBestLabel').textContent=d.label;
+  // Sync GNINA CNN scoring with the chosen reward:
+  //  - Vina reward      → cnn_scoring = none (Vina only, fastest)
+  //  - CNN reward       → CNN must run, so 'none' is invalid → force rescore
+  const cnn=document.getElementById('cnnScoring');
+  const noneOpt=cnn.querySelector('option[value="none"]');
+  if(m==='vina_affinity'){ noneOpt.disabled=false; cnn.value='none'; }
+  else { if(cnn.value==='none') cnn.value='rescore'; noneOpt.disabled=true; }
+  cnnNote();
+}
+function cnnNote(){
+  const m=document.getElementById('metric').value, cnn=document.getElementById('cnnScoring').value;
+  const el=document.getElementById('cnnSyncNote');
+  if(m==='vina_affinity') el.textContent='GNINA runs Vina-only (cnn_scoring=none) — CNN columns will be blank.';
+  else el.textContent='Needs the CNN, so cnn_scoring is locked to rescore/all (not none).';
+}
+metricChanged();
+batchSize.addEventListener('input',()=>{dockEst.textContent=batchSize.value;});
+
+function setRecMode(mode){
+  document.getElementById('modePrep').classList.toggle('active',mode==='prep');
+  document.getElementById('modeUpload').classList.toggle('active',mode==='upload');
+  document.getElementById('prepBox').classList.toggle('hidden',mode!=='prep');
+  document.getElementById('uploadBox').classList.toggle('hidden',mode!=='upload');
+}
+
+let PP_HET = {};   // het_groups dict from inspect: {"RESNAME/CHAIN:RESNUM": [locs]}
+
+async function inspectPDB(){
+  const fd=new FormData();
+  const id=document.getElementById('pdbId').value.trim();
+  const f=document.getElementById('pdbFile').files[0];
+  if(!id && !f){toast('Enter a PDB ID or choose a file',true);return;}
+  if(id) fd.append('pdb_id',id); if(f) fd.append('pdb_file',f);
+  const btn=document.getElementById('inspectBtn');btn.disabled=true;btn.textContent='Inspecting…';
+  try{
+    const r=await fetch('/protprep/inspect',{method:'POST',body:fd});
+    if(!r.ok) throw new Error((await r.json()).detail||r.statusText);
+    const j=await r.json(); REC.prepToken=j.token; PP_HET=j.het_groups||{};
+    document.getElementById('inspectResult').classList.remove('hidden');
+    document.getElementById('structInfo').textContent =
+      `Std residues: ${j.n_std} · Waters: ${j.n_water}` +
+      (j.ssbonds?` · Disulfides: ${j.ssbonds}`:'') + (j.n_altloc?` · Alt locs: ${j.n_altloc}`:'');
+
+    // Chain checkboxes (all checked by default)
+    const cbox=document.getElementById('chainCheckboxes'); cbox.innerHTML='';
+    j.chains.forEach(c=>{
+      const l=document.createElement('label'); l.className='chip';
+      l.innerHTML=`<input type="checkbox" name="chainCb" value="${c}" checked> ${c} <span style="color:var(--muted)">(${j.chain_info[c]} res)</span>`;
+      cbox.appendChild(l);
+    });
+    cbox.querySelectorAll('input[name="chainCb"]').forEach(cb=>cb.addEventListener('change',filterHetByChain));
+
+    // HET table — one row per instance, keys are "RESNAME/CHAIN:RESNUM"
+    const tb=document.getElementById('hetTableBody'); tb.innerHTML='';
+    const names=Object.keys(PP_HET);
+    const IGNORE=['HOH','WAT','SO4','PO4','GOL','EDO','NA','CL','K','MG','ZN','CA','ACT','DMS','PEG','BME','TRS','FMT','IOD','NAG','BMA','MAN'];
+    // default reference = first instance whose resname isn't a common ion/buffer
+    const defRef=names.find(n=>!IGNORE.includes(n.split('/')[0]));
+    if(names.length){
+      names.forEach(name=>{
+        const resn=name.includes('/')?name.split('/')[0]:name;
+        const chain=name.includes('/')?name.split('/')[1].split(':')[0]:'';
+        const tr=document.createElement('tr'); tr.dataset.chain=chain;
+        tr.innerHTML=`<td>${resn}</td><td style="color:var(--muted)">${PP_HET[name].join(', ')}</td>
+          <td><input type="radio" name="hetRef" value="${name}" ${name===defRef?'checked':''} onchange="handleHetChange(this)"></td>
+          <td><input type="checkbox" name="hetCof" value="${name}" onchange="handleCofactorChange(this)"></td>`;
+        tb.appendChild(tr);
+      });
+      document.getElementById('hetSection').classList.remove('hidden');
+      document.getElementById('noHetMsg').classList.add('hidden');
+    } else {
+      document.getElementById('hetSection').classList.add('hidden');
+      document.getElementById('noHetMsg').classList.remove('hidden');
+    }
+    toast(`Inspected: ${j.chains.length} chain(s), ${names.length} HET group(s)`);
+  }catch(e){toast('Inspect failed: '+e.message,true);}
+  finally{btn.disabled=false;btn.textContent='Inspect structure';}
+}
+
+function filterHetByChain(){
+  const keep=new Set([...document.querySelectorAll('input[name="chainCb"]:checked')].map(cb=>cb.value));
+  document.querySelectorAll('#hetTableBody tr').forEach(tr=>{
+    const hide = tr.dataset.chain && !keep.has(tr.dataset.chain);
+    tr.style.display = hide?'none':'';
+    if(hide){const r=tr.querySelector('input[name="hetRef"]'),c=tr.querySelector('input[name="hetCof"]');
+             if(r)r.checked=false; if(c)c.checked=false;}
+  });
+}
+function handleHetChange(radio){               // reference and cofactor are mutually exclusive per row
+  const c=radio.closest('tr').querySelector('input[name="hetCof"]'); if(c)c.checked=false;
+}
+function handleCofactorChange(cb){
+  if(cb.checked){const r=cb.closest('tr').querySelector('input[name="hetRef"]'); if(r&&r.checked)r.checked=false;}
+}
+
+async function runPrep(){
+  if(!REC.prepToken){toast('Inspect a structure first',true);return;}
+  const ref=document.querySelector('input[name="hetRef"]:checked');
+  const hasHet=Object.keys(PP_HET).length>0;
+  if(hasHet && !ref){toast('Select a Reference ligand (autobox) in the HET table',true);return;}
+  const chains=[...document.querySelectorAll('input[name="chainCb"]:checked')].map(cb=>cb.value).join(' ');
+  const cofactors=[...document.querySelectorAll('input[name="hetCof"]:checked')].map(cb=>cb.value).join(' ');
+  const fd=new FormData();
+  fd.append('token',REC.prepToken);
+  fd.append('ph',document.getElementById('ph').value);
+  if(chains) fd.append('chains',chains);
+  if(cofactors) fd.append('cofactors',cofactors);
+  if(ref) fd.append('keep_het',ref.value);
+  const btn=document.getElementById('prepBtn');btn.disabled=true;btn.textContent='Preparing… (1–2 min)';
+  try{
+    const r=await fetch('/protprep/run',{method:'POST',body:fd});
+    if(!r.ok) throw new Error((await r.json()).detail||r.statusText);
+    const j=await r.json();
+    if(!j.ligand_sdf_b64) throw new Error('No reference ligand extracted — pick a Reference in the HET table, or upload a prepared receptor + ligand.');
+    REC.pdb_b64=j.prepared_pdb_b64; REC.lig_b64=j.ligand_sdf_b64; REC.label=j.prepared_pdb_name;
+    markReceptorReady('Prepared '+j.prepared_pdb_name+' + reference ligand '+j.ligand_sdf_name);
+  }catch(e){toast('Prep failed: '+e.message,true);}
+  finally{btn.disabled=false;btn.textContent='Prepare protein →';}
+}
+
+function readFileB64(file){return new Promise((res,rej)=>{
+  const r=new FileReader();r.onload=()=>res(r.result.split(',')[1]);r.onerror=rej;r.readAsDataURL(file);});}
+async function loadUploaded(){
+  const rec=document.getElementById('recUpload').files[0], lig=document.getElementById('ligUpload').files[0];
+  if(!rec||!lig){toast('Choose both a receptor and a reference ligand',true);return;}
+  REC.pdb_b64=await readFileB64(rec); REC.lig_b64=await readFileB64(lig); REC.label=rec.name;
+  markReceptorReady('Loaded '+rec.name+' + '+lig.name);
+}
+function markReceptorReady(msg){
+  document.getElementById('recStatus').innerHTML='<span class="badge">✓ receptor ready</span> '+msg;
+  document.getElementById('runBtn').disabled=false;
+  toast('Receptor ready — set options and start.');
+}
+
+function gatherParams(){
+  return {
+    metric:metric.value,
+    transform_type:(metric.value==='vina_affinity'?'reverse_sigmoid':'sigmoid'),
+    transform_low:parseFloat(tlow.value),transform_high:parseFloat(thigh.value),transform_k:parseFloat(tk.value),
+    max_steps:parseInt(maxSteps.value),min_steps:parseInt(minSteps.value),
+    batch_size:parseInt(batchSize.value),sigma:parseFloat(sigma.value),learning_rate:parseFloat(lr.value),
+    aggregation:agg.value,
+    exhaustiveness:parseInt(exh.value),autobox_add:parseFloat(abox.value),cnn_scoring:cnnScoring.value,
+    train_device:trainGpu.value,docking_gpu:dockGpu.value,dock_cpu:parseInt(embedWorkers.value),
+    use_qed:useQed.checked,qed_weight:parseFloat(qedW.value),
+    use_mw:useMw.checked,mw_weight:parseFloat(mwW.value),mw_low:parseFloat(mwLow.value),mw_high:parseFloat(mwHigh.value),
+    use_slogp:useSlogp.checked,slogp_weight:parseFloat(slogpW.value),slogp_low:parseFloat(slogpLow.value),slogp_high:parseFloat(slogpHigh.value),
+    use_diversity_filter:useDf.checked,
+    // ligand filtering / 3D prep before docking
+    use_ligfilter:useLigfilter.checked,
+    filter_pains:fPains.checked,filter_reos:fReos.checked,filter_custom:fCustom.checked,
+    filter_ro5:fRo5.checked,filter_ro3:fRo3.checked,
+    filter_mw:fMw.value.trim(),filter_qed:fQed.value.trim(),
+    filter_logp:fLogp.value.trim(),filter_tpsa:fTpsa.value.trim(),
+    use_ligprep:useLigprep.checked,
+    canonicalize_tautomers:canonTaut.checked,
+    ligprep_ph:parseFloat(lpPh.value),ligprep_mode:lpMode.value,
+    ligprep_max_tautomers:lpMaxTaut.value.trim(),
+    ligprep_no_stereo:lpNoStereo.checked,
+    apply_state_penalty:lpPenalty.checked
+  };
+}
+function toggleBox(id,on){document.getElementById(id).style.opacity=on?'1':'0.4';
+  document.getElementById(id).style.pointerEvents=on?'auto':'none';}
+
+async function startRun(){
+  if(!REC.pdb_b64||!REC.lig_b64){toast('Set up a receptor first',true);return;}
+  const fd=new FormData();
+  fd.append('name',document.getElementById('runName').value||'reinvent_gnina');
+  fd.append('receptor_pdb_b64',REC.pdb_b64);
+  fd.append('ref_ligand_sdf_b64',REC.lig_b64);
+  fd.append('params_json',JSON.stringify(gatherParams()));
+  document.getElementById('runBtn').disabled=true;
+  try{
+    const r=await fetch('/run',{method:'POST',body:fd});
+    if(!r.ok) throw new Error((await r.json()).detail||r.statusText);
+    JOB=(await r.json()).job_id; chartData=[];
+    document.getElementById('progressCard').classList.remove('hidden');
+    document.getElementById('resultsCard').classList.add('hidden');
+    document.getElementById('stopBtn').classList.remove('hidden');
+    document.getElementById('mMax').textContent=maxSteps.value;
+    connectWS();
+    toast('Run started: '+JOB);
+  }catch(e){toast('Could not start: '+e.message,true);document.getElementById('runBtn').disabled=false;}
+}
+async function stopRun(){if(JOB){await fetch('/stop/'+JOB,{method:'POST'});toast('Stopping…');}}
+
+function connectWS(){
+  if(WS) try{WS.close()}catch(e){}
+  const proto=location.protocol==='https:'?'wss':'ws';
+  WS=new WebSocket(`${proto}://${location.host}/ws/${JOB}`);
+  WS.onmessage=ev=>{const d=JSON.parse(ev.data); if(d&&d.keepalive) return; render(d);};
+  WS.onclose=()=>{};
+}
+
+function render(s){
+  const dot=document.getElementById('statusDot');
+  dot.className='dot '+s.status;
+  document.getElementById('statusText').textContent=s.message||s.status;
+  const last=s.steps&&s.steps.length?s.steps[s.steps.length-1]:null;
+  if(last){
+    document.getElementById('mStep').textContent=last.step;
+    document.getElementById('mScore').textContent=last.score.toFixed(3);
+    document.getElementById('mValid').textContent=last.valid;
+    document.getElementById('progBar').style.width=Math.min(100,100*last.step/s.max_steps)+'%';
+  }
+  if(s.best&&s.best.length){
+    document.getElementById('mBest').textContent=s.best[0].raw;
+  }
+  chartData=(s.steps||[]).map(x=>x.score); drawChart();
+  if(['completed','failed','stopped'].includes(s.status)){
+    document.getElementById('runBtn').disabled=false;
+    document.getElementById('stopBtn').classList.add('hidden');
+    if(s.status==='failed'){
+      const el=document.getElementById('errLog');el.classList.remove('hidden');el.textContent=s.message;
+    }
+    showResults(s);
+  } else if(s.best&&s.best.length){ showResults(s); }
+}
+
+function drawChart(){
+  const c=document.getElementById('chart');const dpr=window.devicePixelRatio||1;
+  const w=c.clientWidth,h=c.clientHeight;c.width=w*dpr;c.height=h*dpr;
+  const x=c.getContext('2d');x.scale(dpr,dpr);x.clearRect(0,0,w,h);
+  if(chartData.length<1)return;
+  const pad=28,mx=Math.max(...chartData,0.0001),mn=Math.min(...chartData,0);
+  const sx=i=>pad+(w-2*pad)*(chartData.length<2?0.5:i/(chartData.length-1));
+  const sy=v=>h-pad-(h-2*pad)*((v-mn)/((mx-mn)||1));
+  x.strokeStyle='#2c3950';x.lineWidth=1;
+  for(let g=0;g<=4;g++){const yy=pad+(h-2*pad)*g/4;x.beginPath();x.moveTo(pad,yy);x.lineTo(w-pad,yy);x.stroke();}
+  x.fillStyle='#8b9bb4';x.font='10px sans-serif';
+  x.fillText(mx.toFixed(2),2,pad+3);x.fillText(mn.toFixed(2),2,h-pad+3);
+  x.strokeStyle='#69db7c';x.lineWidth=2;x.beginPath();
+  chartData.forEach((v,i)=>{i?x.lineTo(sx(i),sy(v)):x.moveTo(sx(i),sy(v));});x.stroke();
+  x.fillStyle='#69db7c';chartData.forEach((v,i)=>{x.beginPath();x.arc(sx(i),sy(v),2.5,0,7);x.fill();});
+  x.fillStyle='#8b9bb4';x.fillText('mean total score per step',pad,14);
+}
+
+function showResults(s){
+  const card=document.getElementById('resultsCard');card.classList.remove('hidden');
+  document.getElementById('resCount').textContent=(s.best||[]).length+' unique';
+  const dl=document.getElementById('downloads');
+  dl.innerHTML=['csv','chkpt','log','config'].map(k=>
+    `<a href="/download/${s.job_id}/${k}" target="_blank">⬇ ${({csv:'results CSV',chkpt:'agent checkpoint',log:'run log',config:'config'})[k]}</a>`).join('');
+  const box=document.getElementById('mols');
+  box.innerHTML=(s.best||[]).map(m=>{
+    const extra=[];
+    if(m.pose!=null)extra.push('pose '+m.pose);
+    if(m.vina!=null)extra.push('vina '+m.vina);
+    if(m.qed!=null)extra.push('QED '+m.qed);
+    return `<div class="mol">
+      <img loading="lazy" src="/molimage?smiles=${encodeURIComponent(m.smiles)}" alt="">
+      <div class="v"><b>${s.metric.replace('_',' ')}: ${m.raw}</b><br>score ${m.score} · step ${m.step}<br>${extra.join(' · ')}</div>
+      <div class="smi">${m.smiles}</div></div>`;
+  }).join('');
+}
+</script>
+</body>
+</html>

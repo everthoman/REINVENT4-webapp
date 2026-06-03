@@ -1,0 +1,63 @@
+# Custom structural filters for ligfilter.py
+#
+# Format: SMARTS<TAB>max_count<TAB>description
+#   max_count = 0  → reject if any match found
+#   max_count = N  → reject if more than N matches found
+#
+# Lines starting with '#' and blank lines are ignored.
+
+# ── Permanently charged groups ────────────────────────────────────────────────
+# Rejects only groups that remain charged regardless of pH — i.e. atoms that
+# carry a formal charge AND have no protonation/deprotonation pathway to a
+# neutral form. Protonated amines (NH3+, NH2+, pyridinium), carboxylates,
+# phenolates, etc. are NOT caught here, because they deprotonate/protonate
+# back to a neutral species at physiological pH; downstream protomer
+# enumeration (ligprep --pH) handles them correctly.
+
+# Permanent cations: quaternary nitrogen, phosphonium, sulfonium
+[#7+;X4;H0]	0	quaternary ammonium
+[#15+;X4;H0]	0	phosphonium
+[#16+;X3;H0]	0	sulfonium
+
+# Permanent anions: low-pKa oxyacids fully deprotonated at neutral pH
+[#16](=O)(=O)[O-]	0	sulfonate / sulfate
+[#15](=O)([O-])[O-]	0	phosphonate / phosphate (di-anion)
+[#15](=O)(O)[O-]	0	phosphonate / phosphate (mono-anion)
+
+# ── Isotopes ──────────────────────────────────────────────────────────────────
+# RDKit SMARTS has no general "any isotope label" query, so each isotope
+# must be listed individually.  The entries below cover all isotopes commonly
+# encountered in medicinal-chemistry libraries, radiolabelling, and NMR studies.
+#
+# Hydrogen
+[2H]	0	deuterium (2H)
+[3H]	0	tritium (3H)
+#
+# Carbon
+[11C]	0	carbon-11 (PET tracer)
+[13C]	0	carbon-13 (NMR label)
+[14C]	0	carbon-14 (radiolabel)
+#
+# Nitrogen
+[15N]	0	nitrogen-15 (NMR label)
+#
+# Oxygen
+[17O]	0	oxygen-17 (NMR label)
+[18O]	0	oxygen-18 (isotope label)
+#
+# Fluorine
+[18F]	0	fluorine-18 (PET tracer)
+#
+# Phosphorus
+[32P]	0	phosphorus-32 (radiolabel)
+[33P]	0	phosphorus-33 (radiolabel)
+#
+# Sulfur
+[33S]	0	sulfur-33 (isotope label)
+[35S]	0	sulfur-35 (radiolabel)
+
+# ── Polyols / sugar-like ──────────────────────────────────────────────────────
+# Counts aliphatic (sp3-carbon) hydroxyls only — phenols and carboxylic-acid OH
+# are NOT counted (those are sp2/aromatic). max_count 3 rejects molecules with
+# 4+ aliphatic OH (sugar-like polyols) while sparing typical diols/triols.
+[CX4][OX2H]	3	polyol / sugar-like (>3 aliphatic OH)
