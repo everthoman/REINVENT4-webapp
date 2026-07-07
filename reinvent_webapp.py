@@ -213,6 +213,47 @@ def job_snapshot(job: Job) -> dict:
     }
 
 
+def _meta_path(job_dir: Path) -> Path:
+    return job_dir / "job_meta.json"
+
+
+def write_job_meta(job: Job) -> None:
+    """Persist a job's status to disk so the run survives a page reload — or,
+    since job_dir lives under WORK_DIR (a scratch dir, not backed up), even an
+    app restart, as long as WORK_DIR itself wasn't cleared in between."""
+    try:
+        _meta_path(job.job_dir).write_text(json.dumps({
+            "job_id": job.job_id,
+            "name": job.name,
+            "metric": job.metric,
+            "max_steps": job.max_steps,
+            "status": job.status,
+            "message": job.message,
+            "created": job.created,
+            "finished": job.finished,
+            "n_steps": len(job.steps),
+            "n_best": len(job.best),
+        }))
+    except Exception:
+        pass
+
+
+def read_job_meta(job_dir: Path) -> dict:
+    p = _meta_path(job_dir)
+    if p.is_file():
+        try:
+            return json.loads(p.read_text())
+        except Exception:
+            pass
+    return {}
+
+
+async def emit(job: Job) -> None:
+    """Broadcast the current snapshot to websocket clients and mirror it to disk."""
+    await broadcast(job.job_id, job_snapshot(job))
+    write_job_meta(job)
+
+
 # ── Score-transform defaults per docking metric ──────────────────────────────
 METRIC_DEFAULTS = {
     # CNNaffinity: predicted pK, higher = stronger binder.
@@ -526,12 +567,12 @@ async def monitor_job(job: Job, config_path: Path) -> None:
     except Exception as e:
         job.status = "failed"
         job.message = f"Could not launch REINVENT: {e}"
-        await broadcast(job.job_id, job_snapshot(job))
+        await emit(job)
         return
 
     job.status = "running"
     job.message = "Reinforcement learning in progress…"
-    await broadcast(job.job_id, job_snapshot(job))
+    await emit(job)
 
     seen_steps = set()
     while True:
@@ -555,7 +596,7 @@ async def monitor_job(job: Job, config_path: Path) -> None:
                     "valid": int(valid),
                 })
             job.best = collect_best(job.job_dir, job.metric, canonicalize=job.canon)
-            await broadcast(job.job_id, job_snapshot(job))
+            await emit(job)
 
         if done:
             break
@@ -581,7 +622,7 @@ async def monitor_job(job: Job, config_path: Path) -> None:
         job.status = "failed"
         tail = (stderr or b"").decode(errors="ignore")[-1500:]
         job.message = f"REINVENT exited with code {job.proc.returncode}.\n{tail}"
-    await broadcast(job.job_id, job_snapshot(job))
+    await emit(job)
     logger.info("Job %s finished: %s", job.job_id, job.status)
 
 
@@ -659,6 +700,7 @@ async def run(
         canon=bool(p.get("canonicalize_tautomers", True)),
     )
     JOBS[job_id] = job
+    write_job_meta(job)
     asyncio.create_task(monitor_job(job, config_path))
     return {"job_id": job_id}
 
@@ -686,6 +728,80 @@ async def _terminate_tree(proc, grace: float = 10.0) -> None:
             os.killpg(pgid, signal.SIGKILL)
         except ProcessLookupError:
             pass
+
+
+@app.get("/jobs")
+async def list_jobs():
+    """List active + past runs (newest first) for the reload/history panel.
+
+    Live jobs come from the in-memory registry; jobs from a previous server
+    lifetime are recovered from job_meta.json mirrored to each job_dir (as
+    long as WORK_DIR wasn't cleared in between, e.g. by a reboot).
+    """
+    items = []
+    seen = set()
+    for job_id, job in JOBS.items():
+        seen.add(job_id)
+        items.append({
+            "job_id": job_id, "name": job.name, "metric": job.metric,
+            "max_steps": job.max_steps, "status": job.status,
+            "message": job.message, "created": job.created,
+            "finished": job.finished, "n_steps": len(job.steps),
+            "n_best": len(job.best), "live": True,
+        })
+    for d in sorted(WORK_DIR.glob("job_*")):
+        if not d.is_dir():
+            continue
+        job_id = d.name[len("job_"):]
+        if job_id in seen:
+            continue
+        meta = read_job_meta(d)
+        if not meta:
+            continue
+        meta["live"] = False
+        items.append(meta)
+    items.sort(key=lambda x: x.get("created") or 0, reverse=True)
+    return {"jobs": items}
+
+
+@app.get("/jobs/{job_id}/snapshot")
+async def job_snapshot_endpoint(job_id: str):
+    """Reconstruct a finished/past job's snapshot from disk (run.log +
+    results_1.csv) for jobs no longer in the live registry."""
+    job = JOBS.get(job_id)
+    if job:
+        return job_snapshot(job)
+
+    job_dir = WORK_DIR / f"job_{job_id}"
+    meta = read_job_meta(job_dir)
+    if not job_dir.is_dir() or not meta:
+        raise HTTPException(404, "job not found")
+
+    metric = meta.get("metric", "vina_affinity")
+    steps: List[Dict[str, float]] = []
+    log_path = job_dir / "run.log"
+    if log_path.exists():
+        try:
+            text = log_path.read_text(errors="ignore")
+        except Exception:
+            text = ""
+        for m in LOG_LINE_RE.finditer(text):
+            score, nll, valid, step = m.groups()
+            steps.append({
+                "step": int(step), "score": round(float(score), 4),
+                "nll": round(float(nll), 2), "valid": int(valid),
+            })
+    best = collect_best(job_dir, metric, canonicalize=True)
+    return {
+        "job_id": job_id,
+        "status": meta.get("status", "unknown"),
+        "message": meta.get("message", ""),
+        "name": meta.get("name", "run"),
+        "metric": metric,
+        "max_steps": meta.get("max_steps", 0),
+        "steps": steps,
+        "best": best,
+    }
 
 
 @app.post("/stop/{job_id}")

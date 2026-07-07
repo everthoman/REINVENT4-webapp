@@ -1,0 +1,14 @@
+[Unit]
+Description=REINVENT4 + GNINA Web App
+After=network.target
+
+[Service]
+Type=simple
+User=evehom
+WorkingDirectory=/opt/webapps/reinvent4-gnina
+ExecStart=/home/evehom/Programs/miniconda3/envs/gnina_webapp/bin/uvicorn reinvent_webapp:app --host 0.0.0.0 --port 5012 --workers 1 --log-level info
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

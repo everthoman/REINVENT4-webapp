@@ -274,6 +274,18 @@
     <p class="help" style="margin-top:8px">Each step docks <span id="dockEst">64</span> molecules — expect a few minutes per step. Results stream live below.</p>
   </div>
 
+  <!-- ── Past / active runs ───────────────────────────────────── -->
+  <div class="card">
+    <h2>Past / active runs</h2>
+    <div class="row" style="align-items:center">
+      <select id="jobSelect" style="flex:2"><option value="">No runs yet</option></select>
+      <button class="ghost" id="jobViewBtn" type="button" style="flex:0 0 auto;width:auto">View</button>
+      <button class="stop" id="jobStopBtn" type="button" style="flex:0 0 auto;width:auto">■ Stop</button>
+      <button class="ghost" id="jobRefreshBtn" type="button" style="flex:0 0 auto;width:auto" title="refresh">↻</button>
+    </div>
+    <p class="help" id="jobInfo" style="margin-top:8px"></p>
+  </div>
+
   <!-- ── Progress ─────────────────────────────────────────────── -->
   <div class="card hidden" id="progressCard">
     <h2>Progress</h2>
@@ -578,6 +590,75 @@ function showResults(s){
       <div class="smi">${m.smiles}</div></div>`;
   }).join('');
 }
+
+// ---- Past / active runs (reload after navigating away, or after a restart) ----
+let jobsById = {};
+const jobSelect = document.getElementById('jobSelect');
+const jobInfoEl = document.getElementById('jobInfo');
+function jobLabel(j){
+  const n = j.n_best ? ` · ${j.n_best} hits` : '';
+  return `${j.job_id} — ${j.status}${n}`;
+}
+function jobSummary(j){
+  if (!j) return '';
+  return [j.name, j.metric, (j.max_steps ? `step ${j.n_steps||0}/${j.max_steps}` : null),
+          (j.created ? new Date(j.created*1000).toLocaleString() : null)]
+    .filter(Boolean).join(' · ');
+}
+function updateJobControls(){
+  const j = jobsById[jobSelect.value];
+  jobInfoEl.textContent = jobSummary(j);
+  document.getElementById('jobViewBtn').disabled = !j;
+  document.getElementById('jobStopBtn').disabled = !(j && j.live && ['running','starting'].includes(j.status));
+}
+async function refreshJobs(){
+  let data;
+  try { data = await (await fetch('/jobs')).json(); } catch(e){ return; }
+  jobsById = {};
+  const keep = jobSelect.value;
+  if (!data.jobs.length){
+    jobSelect.innerHTML = '<option value="">No runs yet</option>';
+    updateJobControls();
+    return;
+  }
+  jobSelect.innerHTML = data.jobs.map(j=>{
+    jobsById[j.job_id] = j;
+    return `<option value="${j.job_id}">${jobLabel(j)}</option>`;
+  }).join('');
+  if (jobsById[keep]) jobSelect.value = keep;
+  else if (JOB && jobsById[JOB]) jobSelect.value = JOB;
+  updateJobControls();
+}
+async function viewJob(j){
+  JOB = j.job_id; chartData = [];
+  document.getElementById('progressCard').classList.remove('hidden');
+  document.getElementById('resultsCard').classList.add('hidden');
+  document.getElementById('mMax').textContent = j.max_steps;
+  document.getElementById('runBtn').disabled = false;
+  if (j.live && ['running','starting'].includes(j.status)){
+    document.getElementById('stopBtn').classList.remove('hidden');
+    connectWS();
+  } else {
+    document.getElementById('stopBtn').classList.add('hidden');
+    let snap;
+    try { snap = await (await fetch(`/jobs/${j.job_id}/snapshot`)).json(); }
+    catch(e){ toast('Could not load run', true); return; }
+    render(snap);
+  }
+}
+jobSelect.addEventListener('change', updateJobControls);
+document.getElementById('jobViewBtn').addEventListener('click', ()=>{
+  const j = jobsById[jobSelect.value]; if (j) viewJob(j);
+});
+document.getElementById('jobStopBtn').addEventListener('click', async ()=>{
+  const j = jobsById[jobSelect.value]; if (!j) return;
+  await fetch('/stop/'+j.job_id, {method:'POST'});
+  toast('Stopping…');
+  setTimeout(refreshJobs, 1500);
+});
+document.getElementById('jobRefreshBtn').addEventListener('click', refreshJobs);
+refreshJobs();
+setInterval(refreshJobs, 15000);
 </script>
 </body>
 </html>
